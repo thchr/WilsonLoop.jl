@@ -23,7 +23,8 @@ Hermitian Hamiltonian (though it does not need to be explicitly parametrizable).
   eigenstates; generally, a vector of vectors (dim H × dim R). If `nothing`, all coordinates
   are set to the origin.
 """
-function wilsonloop(statefunc::Function, kpath::AbstractVector, coords::Union{AbstractVector,Nothing}=nothing)
+function wilsonloop(statefunc::Function, kpath::AbstractVector, 
+                    coords::Union{AbstractVector,Nothing}=nothing)
     Nk = length(kpath)
     
     uk1 = statefunc(kpath[1]) # pickeigvecs!(H(kpath[1]), states); 
@@ -42,7 +43,7 @@ function wilsonloop(statefunc::Function, kpath::AbstractVector, coords::Union{Ab
     # Last overlap <u(k_N)|u(k_{N-1})>; u(k_N) is obtained from u(k_1), since k_1 = k_N mod G, cf. periodicity
     if !isnothing(coords) # if coords is nothing, we assume it means all coordinates equal the origin, i.e. phase term is unity
         G = kpath[end] .- kpath[1]
-        phase = exp.(-1im*map(r -> sum(r.*G), coords)) # the map(...) is just a fancy way of writing dot(G,r) when r is a vector of coordinates
+        phase = cis.(-map(r -> sum(r.*G), coords)) # the map(...) is just a fancy way of writing dot(G,r) when r is a vector of coordinates
         for uk1_n in eachcol(uk1) # create u(k_N) from u(k_1) by multiplying appropriate phase factor; overwrite into uk1
             uk1_n .*= phase
         end
@@ -68,11 +69,9 @@ Return the Wilson loop around a **k**-path `kpath`, for `states` of a Hamiltonia
   eigenstates; generally, a vector of vectors (dim H × dim R). If `nothing`, all coordinates
   are set to the origin.
 """
-function wilsonloop(hamiltonianstatetuple::Tuple{T, AbstractVector} where T<:Function, 
+function wilsonloop((H, states)::Tuple{T, AbstractVector} where T<:Function, 
                     kpath::AbstractVector, coords::Union{AbstractVector,Nothing}=nothing)
-    H, states = hamiltonianstatetuple
-    wilsonloop(kvec -> pickeigvecs!(H(kvec), states), 
-               kpath, coords)
+    wilsonloop(kvec -> pickeigvecs!(H(kvec), states), kpath, coords)
 end
 
 function pickeigvecs!(A, states)
@@ -93,7 +92,7 @@ function normalizevecs!(u)
     return u
 end
 
-@docs raw""" 
+@doc raw""" 
     overlap(uki, ukj) 
 
 Computes the overlap matrix
@@ -112,7 +111,7 @@ function overlap!(Mij, uki, ukj)
 end
 
 function unitarize!(Mij)
-    F = svd!(Mij) # allow overwriting Mij, since we re-overwrite below again (saves some allocations)
+    F = svd!(Mij) # uses `Mij` as buffer; write to `Mij` again below
     return mul!(Mij, F.U, F.Vt)
 end
 
