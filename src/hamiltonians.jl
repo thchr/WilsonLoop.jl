@@ -1,4 +1,6 @@
+module Hamiltonians
 using StaticArrays
+export HChern, HQSH, Hq
 
 const σx = @SArray [0 1; 1 0] # use SArrays to make functions of σi inferrable inside functions (e.g. kron)
 const σy = @SArray [0 1im; -1im 0]
@@ -34,6 +36,7 @@ const Γ1 = -kron(σy, σx)
 const Γ2 = -kron(σy, σy)
 const Γ3 = -kron(σy, σz)
 const Γ4 =  kron(σx, σ0)
+
 """ 
     Hq(kx, ky)
 
@@ -44,3 +47,4 @@ function Hq(kx, ky; γx=0.5, γy=0.5, λx=1.0, λy=1.0)
     H = (γx + λx*cos(kx))*Γ4 .+ (λx*sin(kx))*Γ3 .+ (γy + λy*cos(ky))*Γ2 .+ (λy*sin(ky))*Γ1
     return H
 end
+end # module Hamiltonians

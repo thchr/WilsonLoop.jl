@@ -4,22 +4,24 @@ using LinearAlgebra
 
 export wilsonloop, berryphase, wannierhamiltonian, wannierstate, wilsonspectrum, spectrum
 
-""" 
-    eachcol(A::AbstractArray) --> Iterator
-
-Produces an iterator over the columns of `A`; implemented in 
-julia-1.2.x, but not in earlier versions (see #29749)
-"""
-eachcol(A::AbstractArray) = (view(A, :, j) for j in axes(A, 2))
+include("Hamiltonians.jl") # defines Hamiltonians module with example Hamiltonians
 
 """ 
     wilsonloop(statefunc, kpath, coords=nothing)
 
-Calculates the Wilson loop W around a path `kpath`, for a function `statefunc` that returns a selection (i.e. a multiplet) of (normalized!) states when evaluated at 
-a (vectorial) k-point (see e.g. `pickeigvecs!`); the states are assumed to associate with a Hermitian Hamiltonian (though it does not need to be explicitly parametrizable).
-- `statefunc`: a single-argument function that returns an set of Ns states (as a complex Array of size dim H × Ns) evaluable at a (vectorial) k-point.
-- `kpath`: a vector of k-points, specifying the path of the Wilson loop; it is expected to span a range of 2π, i.e. is specified in normalized units.
-- `coords`: a vector of coordinates associated with the elements of the Hamiltonian/eigenstates; generally, a vector of vectors (dim H × dim R). If specified as `nothing`, all coordinates are set to the origin.
+Calculates the Wilson loop W around a path `kpath`, for a function `statefunc` that returns 
+a selection (i.e. a multiplet) of (normalized!) states when evaluated at a (vectorial)
+**k**-point (see e.g. [`pickeigvecs!`](@ref)); the states are assumed to associate with a
+Hermitian Hamiltonian (though it does not need to be explicitly parametrizable).
+
+## Arguments
+- `statefunc`: a single-argument function that returns an set of `Ns` states (as a complex 
+  `Array` of size dim(H) × `Ns`) evaluable at a (vectorial) **k**-point.
+- `kpath`: a vector of k-points, specifying the path of the Wilson loop; it is expected to 
+  span a range of 2π, i.e. is specified in normalized units.
+- `coords`: a vector of coordinates associated with the elements of the Hamiltonian or 
+  eigenstates; generally, a vector of vectors (dim H × dim R). If `nothing`, all coordinates
+  are set to the origin.
 """
 function wilsonloop(statefunc::Function, kpath::AbstractVector, coords::Union{AbstractVector,Nothing}=nothing)
     Nk = length(kpath)
@@ -49,14 +51,22 @@ function wilsonloop(statefunc::Function, kpath::AbstractVector, coords::Union{Ab
     
     return M
 end
+
+
 """ 
     wilsonloop((H::Function, states), kpath, coords=nothing)
 
-Calculates the Wilson loop W around a path `kpath`, for `states` of a Hamiltonian function `H` (provided as a tuple (H, states)).
-- `H`: a Hamiltonian, specified as a function evaluable at a (vectorial) k-point.
+Return the Wilson loop around a **k**-path `kpath`, for `states` of a Hamiltonian function
+`H` (provided as a tuple (H, states))
+
+## Arguments:
+- `H`: a Hamiltonian, specified as a function evaluable at a (vectorial) **k**-point.
 - `states`: a selection of states from the `H` (an AbstractVector).
-- `kpath`: a vector of k-points, specifying the path of the Wilson loop; it is expected to span a range of 2π, i.e. is specified in normalized units.
-- `coords`: a vector of coordinates associated with the elements of the Hamiltonian/eigenstates; generally, a vector of vectors (dim H × dim R). If specified as `nothing`, all coordinates are set to the origin.
+- `kpath`: a vector of k-points, specifying the path of the Wilson loop; it is expected to
+  span a range of 2π, i.e. is specified in normalized units.
+- `coords`: a vector of coordinates associated with the elements of the Hamiltonian or
+  eigenstates; generally, a vector of vectors (dim H × dim R). If `nothing`, all coordinates
+  are set to the origin.
 """
 function wilsonloop(hamiltonianstatetuple::Tuple{T, AbstractVector} where T<:Function, 
                     kpath::AbstractVector, coords::Union{AbstractVector,Nothing}=nothing)
@@ -66,7 +76,7 @@ function wilsonloop(hamiltonianstatetuple::Tuple{T, AbstractVector} where T<:Fun
 end
 
 function pickeigvecs!(A, states)
-    if typeof(A) <: SArray
+    if A isa SArray
         F = eigen(Hermitian(A)) 
     else
         F = eigen!(Hermitian(A)) # this is destructive, i.e. overwrites A
@@ -83,14 +93,15 @@ function normalizevecs!(u)
     return u
 end
 
-""" 
+@docs raw""" 
     overlap(uki, ukj) 
 
 Computes the overlap matrix
-    M_{nm}^{ij} = < u_n(k_i) | u_m(k_j) >
-given a set of (orthonormal) Bloch states {u_n} 
-evaluated at (usually adjacent) k-points k_i and
-k_j. A *set* of Bloch states is expected.
+```math
+M_{nm}^{ij} = \langle u_n(k_i) | u_m(k_j) \rangle
+```
+given a set of (orthonormal) Bloch states ``{u_n}`` evaluated at (usually adjacent)
+**k**-points ``k_i`` and ``k_j``. A *set* of Bloch states is expected.
 """
 overlap(uki, ukj) = ( S = size(uki, 2); return overlap!(Matrix{eltype(uki)}(undef, S,S), uki, ukj) )
 
@@ -106,8 +117,10 @@ function unitarize!(Mij)
 end
 
 """ 
+    wannierhamiltonian
 
-Identify a topologically equivalent Hamiltonian H_edge from the Wilson loop W via the identification W = exp(i*H_edge)
+Identify a topologically equivalent Hamiltonian H_edge from the Wilson loop W via the
+identification ``W = \\exp(iH_{\\text{edge}})``
 """
 function wannierhamiltonian(statefunc, kpath::AbstractVector, coords::Union{AbstractVector,Nothing}=nothing)
     M = wilsonloop(statefunc, kpath, coords)
@@ -142,10 +155,9 @@ angle2π(x) = domain2π(angle(x))
 """
     wilsonspectrum(M)
 
-Extract the (possibly non-Abelian) Berry phase spectrum  
-associated with a Wilson loop matrix `M`. Returns both
-the Berry phases φ (∈[0,2π]) and the associated Wilson 
-loop eigenfunctions sorted according to φ.
+Return the (possibly non-Abelian) Berry phase spectrum associated with a Wilson loop
+matrix `M` via its Berry phases φ (∈[0,2π]) and the associated Wilson loop eigenfunctions
+sorted according to φ.
 """
 function wilsonspectrum(M)
     F = eigen(M)
@@ -157,12 +169,11 @@ end
 """ 
     berryphase(M)
 
-Extract the (possibly non-Abelian) Berry phases φ (∈[0,2π])   
-of a Wilson loop matrix `M`, in sorted order.
+Return the (possibly non-Abelian) Berry phases φ (∈[0,2π]) of a Wilson loop matrix `M`, 
+in sorted order.
 """
 function berryphase(M)
     φ = sort(angle.(eigvals(M)))
 end
 
 end # module
-

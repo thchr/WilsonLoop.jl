@@ -4,9 +4,8 @@
 using Plots
 pyplot()
 
-include("WilsonLoop.jl")
-using Main.WilsonLoop
-include("hamiltonians.jl")
+using WilsonLoop
+using WilsonLoop.Hamiltonians
 
 # --- scripting ... ---
 Nk = 50; 
